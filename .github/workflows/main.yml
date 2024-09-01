@@ -1,0 +1,77 @@
+stages:
+  - install
+  - lint
+  - test
+  - build
+  - deploy
+
+# Global variables
+variables:
+  NODE_ENV: 'production'
+  DATABASE_URL: "postgresql://user:password@localhost:5432/eshop" # Update with your real database URL
+  VERCEL_TOKEN: $VERCEL_TOKEN # Assuming you have added this as a secret variable in GitLab CI/CD settings
+
+# Cache dependencies between jobs
+cache:
+  paths:
+    - node_modules/
+    - .next/cache
+
+# Job: Install dependencies
+install_dependencies:
+  stage: install
+  image: node:18-alpine
+  script:
+    - npm ci
+  artifacts:
+    paths:
+      - node_modules/
+
+# Job: Lint code
+lint:
+  stage: lint
+  image: node:18-alpine
+  script:
+    - npm run lint
+  only:
+    - merge_requests
+    - main
+
+# Job: Run tests
+test:
+  stage: test
+  image: node:18-alpine
+  script:
+    - npm run test
+  artifacts:
+    when: always
+    reports:
+      junit: junit.xml
+  only:
+    - merge_requests
+    - main
+
+# Job: Build the Next.js application
+build:
+  stage: build
+  image: node:18-alpine
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - .next/
+  only:
+    - main
+
+# Job: Deploy to Vercel
+deploy:
+  stage: deploy
+  image: node:18-alpine
+  script:
+    - npx vercel --token $VERCEL_TOKEN --prod --confirm
+  environment:
+    name: production
+    url: https://your-app.vercel.app # Update with your app's URL
+  only:
+    - main
+  when: manual
